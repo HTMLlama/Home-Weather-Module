@@ -17,6 +17,7 @@ long lastMessage = 0;
 char msg[100];
 int value = 0;
 float lastTempValue = 0.00;
+float lastHumValue = 0.00;
 bool isFirstLoad = true;
 
 DHT dht(DHT_PIN, DHT_TYPE);
@@ -61,7 +62,7 @@ void setupPubSub() {
 void reconnectToPubSub() {
   while(!pubSubClient.connected()) {
     Serial.println("MQTT Connecting...");
-    if (pubSubClient.connect("WeatherStation")) {
+    if (pubSubClient.connect("KitchenClimate")) {
       Serial.println("Connected to MQTT!");
       pubSubClient.subscribe("esp32/weather/#");
     } else {
@@ -94,7 +95,7 @@ void loop() {
 
   EVERY_N_SECONDS(15) {
     float h = dht.readHumidity();
-    // float t = dht.readTemperature();
+    // float c = dht.readTemperature();
     float f = dht.readTemperature(true);
     if (isnan(f) || isnan(h)) {
         Serial.println("Failed to read from DHT sensor!");
@@ -105,14 +106,16 @@ void loop() {
     // float hic = dht.computeHeatIndex(t, h, false);
 
     if (isFirstLoad || !(f - lastTempValue >= 7)) {
-      isFirstLoad = false;
       lastTempValue = f;
       delay(200);
-      pubSubClient.publish("livingroom/weather/f", dtostrf(f, 4, 2, dtostrfChars));
+      pubSubClient.publish("kitchen/weather/f", dtostrf(f, 4, 2, dtostrfChars));
       delay(200); 
-      pubSubClient.publish("livingroom/weather/h", dtostrf(h, 4, 2, dtostrfChars));
-      delay(200); 
-      pubSubClient.publish("livingroom/weather/hif", dtostrf(hif, 4, 2, dtostrfChars));
+      if (isFirstLoad || !(f - lastHumValue >= 7)) {
+        pubSubClient.publish("kitchen/weather/h", dtostrf(h, 4, 2, dtostrfChars));
+        delay(200); 
+        pubSubClient.publish("kitchen/weather/hif", dtostrf(hif, 4, 2, dtostrfChars));
+      }
+      isFirstLoad = false;
     }
   }
   
