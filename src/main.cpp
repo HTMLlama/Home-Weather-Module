@@ -16,6 +16,8 @@ PubSubClient pubSubClient(wiFiClient);
 long lastMessage = 0;
 char msg[100];
 int value = 0;
+float lastTempValue = 0.00;
+bool isFirstLoad = true;
 
 DHT dht(DHT_PIN, DHT_TYPE);
 char dtostrfChars[8];
@@ -90,18 +92,28 @@ void loop() {
   }
   pubSubClient.loop();
 
-  EVERY_N_SECONDS(30) {
+  EVERY_N_SECONDS(15) {
     float h = dht.readHumidity();
     // float t = dht.readTemperature();
     float f = dht.readTemperature(true);
-    if (isnan(f)) {
+    if (isnan(f) || isnan(h)) {
         Serial.println("Failed to read from DHT sensor!");
         pubSubClient.publish("weather/e", "Unknown Error");
         return;
     }
-    // float hif = dht.computeHeatIndex(f, h);
+    float hif = dht.computeHeatIndex(f, h);
     // float hic = dht.computeHeatIndex(t, h, false);
-    pubSubClient.publish("weather/f", dtostrf(f, 4, 2, dtostrfChars)); 
+
+    if (isFirstLoad || !(f - lastTempValue >= 7)) {
+      isFirstLoad = false;
+      lastTempValue = f;
+      delay(200);
+      pubSubClient.publish("livingroom/weather/f", dtostrf(f, 4, 2, dtostrfChars));
+      delay(200); 
+      pubSubClient.publish("livingroom/weather/h", dtostrf(h, 4, 2, dtostrfChars));
+      delay(200); 
+      pubSubClient.publish("livingroom/weather/hif", dtostrf(hif, 4, 2, dtostrfChars));
+    }
   }
   
 }
